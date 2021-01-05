@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>OpenCV FaceDetect</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script async src='opencv.js' onload='openCvReady();'></script>
+  <script src='utils.js'></script>
+</head>
+
+<body>
+  <center><h1>Fitness 24 X 7</h1></center>
+
+<section>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <video id='cam_input' height='480' width='640'></video>
+      </div>
+      <div class="col-md-6">
+        <canvas id='canvas_output'></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <script>
+    function openCvReady() {
+      cv['onRuntimeInitialized'] = () => {
+        let video = document.getElementById('cam_input');
+        // using WebRTC to get media stream
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+          })
+          .catch(function (err) {
+            console.log('An error has occured! ' + err);
+          });
+
+        let src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+        let gray = new cv.Mat();
+        let cap = new cv.VideoCapture(cam_input);
+        let faces = new cv.RectVector();
+        let faceClassifier = new cv.CascadeClassifier();
+        let utils = new Utils('errorMessage');
+        let faceCascade = 'haarcascade_frontalface_alt2.xml';
+        utils.createFileFromUrl(faceCascade, faceCascade, () => {
+          faceClassifier.load(faceCascade);
+        });
+        let p1 = new cv.Point(0, 5);
+        let p2 = new cv.Point(10, 5);
+
+        const FPS = 30;
+        function processVideo() {
+          let begin = Date.now();
+          cap.read(src);
+          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+          try {
+            faceClassifier.detectMultiScale(gray, faces, 1.1, 3, 0);
+            for (let i = 0; i < faces.size(); ++i) {
+              let face = faces.get(i);
+              let point1 = new cv.Point(face.x, face.y);
+              let point2 = new cv.Point(face.x + face.width, face.y + face.height);
+              cv.rectangle(src, point1, point2, [255, 0, 0, 255]);
+            }
+
+          } catch (err) {
+            console.log(err);
+          }
+
+          cv.line(src, new cv.Point(0, (video.height) / 2), new cv.Point(video.width, (video.height) / 2), [0, 0, 255, 255], 2);
+          cv.line(src, new cv.Point((video.width) / 2, 0), new cv.Point((video.width) / 2, video.height), [0, 0, 255, 255], 2);
+          cv.imshow('canvas_output', src);
+
+
+          let delay = 1000 / FPS - (Date.now() - begin);
+          // schedule next one
+          setTimeout(processVideo, delay);
+        }
+
+        // schedule first one 
+        setTimeout(processVideo, 0);
+      }
+    }
+  </script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+
+</html>
